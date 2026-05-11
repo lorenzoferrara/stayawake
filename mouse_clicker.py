@@ -16,8 +16,9 @@ class MouseClickerApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Mouse Clicker")
-        self.root.geometry("430x290")
-        self.root.resizable(False, False)
+        # Let Tk size the window from content and keep a safe minimum size.
+        self.root.minsize(430, 320)
+        self.root.resizable(True, True)
 
         # Runtime state
         self.running = False
@@ -26,87 +27,207 @@ class MouseClickerApp:
         self.click_thread: threading.Thread | None = None
         self.stop_event = threading.Event()
 
-        self.interval_var = tk.StringVar(value="1.0")
+        self.interval_var = tk.StringVar(value="4.0")
         self.button_var = tk.StringVar(value="left")
         self.double_click_var = tk.BooleanVar(value=False)
         self.click_count_var = tk.StringVar(value="0")  # 0 means infinite
         self.status_var = tk.StringVar(value="Set parameters and press Start Clicking")
 
         self._build_ui()
+        self._refresh_action_button_theme()
 
         pyautogui.FAILSAFE = True
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _build_ui(self) -> None:
-        main = ttk.Frame(self.root, padding=14)
+        self.root.configure(bg="#f4f7f5")
+
+        main = tk.Frame(self.root, bg="#f4f7f5", padx=16, pady=16)
         main.pack(fill="both", expand=True)
 
-        title = ttk.Label(
-            main, text="Auto Mouse Clicker", font=("Segoe UI", 14, "bold")
-        )
-        title.pack(anchor="w", pady=(0, 10))
+        tk.Label(
+            main,
+            text="Auto Mouse Clicker",
+            bg="#f4f7f5",
+            fg="#1f2937",
+            font=("Segoe UI", 18, "bold"),
+        ).pack(anchor="w")
 
-        form = ttk.Frame(main)
+        tk.Label(
+            main,
+            text="Simple, reliable clicks with safer controls",
+            bg="#f4f7f5",
+            fg="#64748b",
+            font=("Segoe UI", 10),
+        ).pack(anchor="w", pady=(2, 12))
+
+        form = tk.Frame(
+            main,
+            bg="#ffffff",
+            highlightbackground="#dbe4de",
+            highlightthickness=1,
+            padx=12,
+            pady=10,
+        )
         form.pack(fill="x")
 
-        ttk.Label(form, text="Click interval (seconds):").grid(
-            row=0, column=0, sticky="w", pady=4
-        )
-        ttk.Entry(form, textvariable=self.interval_var, width=12).grid(
-            row=0, column=1, sticky="w", pady=4
+        form.grid_columnconfigure(0, weight=1)
+        form.grid_columnconfigure(1, weight=0)
+
+        tk.Label(
+            form,
+            text="Click interval (seconds):",
+            bg="#ffffff",
+            fg="#334155",
+            font=("Segoe UI", 10),
+        ).grid(row=0, column=0, sticky="w", pady=6)
+        ttk.Entry(form, textvariable=self.interval_var, width=14).grid(
+            row=0, column=1, sticky="e", pady=6
         )
 
-        ttk.Label(form, text="Mouse button:").grid(row=1, column=0, sticky="w", pady=4)
+        tk.Label(
+            form,
+            text="Mouse button:",
+            bg="#ffffff",
+            fg="#334155",
+            font=("Segoe UI", 10),
+        ).grid(row=1, column=0, sticky="w", pady=6)
         ttk.Combobox(
             form,
             textvariable=self.button_var,
             values=["left", "right", "middle"],
             state="readonly",
-            width=10,
-        ).grid(row=1, column=1, sticky="w", pady=4)
+            width=12,
+        ).grid(row=1, column=1, sticky="e", pady=6)
 
-        ttk.Label(form, text="Number of clicks (0 = infinite):").grid(
-            row=2, column=0, sticky="w", pady=4
-        )
-        ttk.Entry(form, textvariable=self.click_count_var, width=12).grid(
-            row=2, column=1, sticky="w", pady=4
+        tk.Label(
+            form,
+            text="Number of clicks (0 = infinite):",
+            bg="#ffffff",
+            fg="#334155",
+            font=("Segoe UI", 10),
+        ).grid(row=2, column=0, sticky="w", pady=6)
+        ttk.Entry(form, textvariable=self.click_count_var, width=14).grid(
+            row=2, column=1, sticky="e", pady=6
         )
 
         ttk.Checkbutton(
             form, text="Double click each cycle", variable=self.double_click_var
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=4)
+        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 4))
 
-        self.target_label = ttk.Label(main, text="Target: not selected")
+        self.target_label = tk.Label(
+            main,
+            text="Target: not selected",
+            bg="#f4f7f5",
+            fg="#334155",
+            font=("Segoe UI", 10),
+        )
         self.target_label.pack(anchor="w", pady=(10, 2))
 
-        status = ttk.Label(main, textvariable=self.status_var, foreground="#1d4ed8")
-        status.pack(anchor="w", pady=(0, 10))
+        tk.Label(
+            main,
+            textvariable=self.status_var,
+            bg="#f4f7f5",
+            fg="#0f766e",
+            font=("Segoe UI", 10, "bold"),
+        ).pack(anchor="w", pady=(0, 12))
 
-        actions = ttk.Frame(main)
-        actions.pack(fill="x", pady=(6, 0))
+        actions = tk.Frame(main, bg="#f4f7f5")
+        actions.pack(fill="x", pady=(2, 0))
+        actions.grid_columnconfigure(0, weight=1)
+        actions.grid_columnconfigure(1, weight=1)
+        actions.grid_columnconfigure(2, weight=1)
 
-        self.start_btn = ttk.Button(
-            actions, text="Start Clicking", command=self.start_clicked
+        self.start_btn = tk.Button(
+            actions,
+            text="Start Clicking",
+            command=self.start_clicked,
+            bg="#bddfc1",
+            fg="#16351b",
+            activebackground="#a9d2ae",
+            activeforeground="#112b16",
+            relief="flat",
+            padx=8,
+            pady=8,
         )
-        self.start_btn.pack(side="left")
+        self.start_btn.grid(row=0, column=0, sticky="ew")
 
-        self.stop_btn = ttk.Button(
-            actions, text="Stop", command=self.stop_clicked, state="disabled"
+        self.stop_btn = tk.Button(
+            actions,
+            text="Stop",
+            command=self.stop_clicked,
+            state="disabled",
+            bg="#edc1c1",
+            fg="#4a1b1b",
+            activebackground="#e2adad",
+            activeforeground="#3b1515",
+            disabledforeground="#6b3b3b",
+            relief="flat",
+            padx=8,
+            pady=8,
         )
-        self.stop_btn.pack(side="left", padx=(8, 0))
+        self.stop_btn.grid(row=0, column=1, padx=8, sticky="ew")
 
-        ttk.Button(actions, text="Clear Target", command=self.clear_target).pack(
-            side="left", padx=(8, 0)
-        )
+        tk.Button(
+            actions,
+            text="Clear Target",
+            command=self.clear_target,
+            bg="#d8e1ea",
+            fg="#1f2937",
+            activebackground="#c4d3e0",
+            activeforeground="#111827",
+            relief="flat",
+            padx=8,
+            pady=8,
+        ).grid(row=0, column=2, sticky="ew")
 
         help_text = (
             "When you press Start Clicking, this app waits for your next mouse click anywhere on the screen.\n"
             "That position is saved and used as the auto-click target.\n"
             "Move mouse to top-left corner to trigger PyAutoGUI failsafe if needed."
         )
-        ttk.Label(main, text=help_text, justify="left", foreground="#475569").pack(
-            anchor="w", pady=(10, 0)
-        )
+        tk.Label(
+            main,
+            text=help_text,
+            justify="left",
+            bg="#f4f7f5",
+            fg="#64748b",
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(12, 0))
+
+    def _refresh_action_button_theme(self) -> None:
+        clicker_on = self.running or self.waiting_for_target
+
+        if clicker_on:
+            self.start_btn.config(
+                bg="#d7e6d9",
+                fg="#38513d",
+                activebackground="#c9dccd",
+                activeforeground="#324737",
+                disabledforeground="#6a8070",
+            )
+            self.stop_btn.config(
+                bg="#e8b5b5",
+                fg="#4a1b1b",
+                activebackground="#dda4a4",
+                activeforeground="#3b1515",
+                disabledforeground="#7d5252",
+            )
+        else:
+            self.start_btn.config(
+                bg="#bddfc1",
+                fg="#16351b",
+                activebackground="#a9d2ae",
+                activeforeground="#112b16",
+                disabledforeground="#5f7b63",
+            )
+            self.stop_btn.config(
+                bg="#d9dde2",
+                fg="#4b5563",
+                activebackground="#cbd2da",
+                activeforeground="#374151",
+                disabledforeground="#6b7280",
+            )
 
     def _parse_params(self) -> tuple[float, int]:
         try:
@@ -138,6 +259,7 @@ class MouseClickerApp:
         self.waiting_for_target = True
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
+        self._refresh_action_button_theme()
         self.status_var.set("Waiting for your next mouse click to set target...")
 
         listener_thread = threading.Thread(target=self._capture_next_click, daemon=True)
@@ -166,6 +288,7 @@ class MouseClickerApp:
         self.waiting_for_target = False
         self.running = True
         self.stop_event.clear()
+        self._refresh_action_button_theme()
 
         self.target_label.config(text=f"Target: {self.target_pos}")
         self.status_var.set("Clicking started.")
@@ -217,6 +340,7 @@ class MouseClickerApp:
         self.waiting_for_target = False
         self.start_btn.config(state="normal")
         self.stop_btn.config(state="disabled")
+        self._refresh_action_button_theme()
         if (
             "Stopped" not in self.status_var.get()
             and "Completed" not in self.status_var.get()
@@ -341,7 +465,7 @@ def run_cli_clicker() -> None:
 
     print("Tkinter is unavailable in this environment.")
     print("Running in terminal mode instead.")
-    interval = ask_positive_float("Click interval in seconds", 1.0)
+    interval = ask_positive_float("Click interval in seconds", 4)
     button = ask_button("Mouse button", "left")
     total_clicks = ask_non_negative_int("Number of clicks (0 = infinite)", 0)
     double_click = ask_yes_no("Double click each cycle", False)
