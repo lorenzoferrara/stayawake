@@ -30,6 +30,7 @@ class MouseClickerApp:
         self.interval_var = tk.StringVar(value="4.0")
         self.button_var = tk.StringVar(value="left")
         self.double_click_var = tk.BooleanVar(value=False)
+        self.return_mouse_var = tk.BooleanVar(value=True)
         self.click_count_var = tk.StringVar(value="0")  # 0 means infinite
         self.status_var = tk.StringVar(value="Set parameters and press Start Clicking")
 
@@ -115,6 +116,12 @@ class MouseClickerApp:
             form, text="Double click each cycle", variable=self.double_click_var
         ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 4))
 
+        ttk.Checkbutton(
+            form,
+            text="Return mouse to original position",
+            variable=self.return_mouse_var,
+        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(2, 4))
+
         self.target_label = tk.Label(
             main,
             text="Target: not selected",
@@ -152,12 +159,27 @@ class MouseClickerApp:
         )
         self.start_btn.grid(row=0, column=0, sticky="ew")
 
+        self.resume_btn = tk.Button(
+            actions,
+            text="Resume",
+            command=self.resume_clicked,
+            bg="#9fc6ea",
+            fg="#17324b",
+            activebackground="#8bb8df",
+            activeforeground="#11283c",
+            disabledforeground="#5d7488",
+            relief="flat",
+            padx=8,
+            pady=8,
+        )
+        self.resume_btn.grid(row=0, column=1, padx=8, sticky="ew")
+
         self.stop_btn = tk.Button(
             actions,
             text="Stop",
             command=self.stop_clicked,
             state="disabled",
-            bg="#edc1c1",
+            bg="#e49c9c",
             fg="#4a1b1b",
             activebackground="#e2adad",
             activeforeground="#3b1515",
@@ -166,20 +188,7 @@ class MouseClickerApp:
             padx=8,
             pady=8,
         )
-        self.stop_btn.grid(row=0, column=1, padx=8, sticky="ew")
-
-        tk.Button(
-            actions,
-            text="Clear Target",
-            command=self.clear_target,
-            bg="#d8e1ea",
-            fg="#1f2937",
-            activebackground="#c4d3e0",
-            activeforeground="#111827",
-            relief="flat",
-            padx=8,
-            pady=8,
-        ).grid(row=0, column=2, sticky="ew")
+        self.stop_btn.grid(row=0, column=2, sticky="ew")
 
         help_text = (
             "When you press Start Clicking, this app waits for your next mouse click anywhere on the screen.\n"
@@ -206,6 +215,13 @@ class MouseClickerApp:
                 activeforeground="#324737",
                 disabledforeground="#6a8070",
             )
+            self.resume_btn.config(
+                bg="#d9dde2",
+                fg="#59636f",
+                activebackground="#cbd2da",
+                activeforeground="#4d5661",
+                disabledforeground="#7b8794",
+            )
             self.stop_btn.config(
                 bg="#e8b5b5",
                 fg="#4a1b1b",
@@ -220,6 +236,13 @@ class MouseClickerApp:
                 activebackground="#a9d2ae",
                 activeforeground="#112b16",
                 disabledforeground="#5f7b63",
+            )
+            self.resume_btn.config(
+                bg="#9fc6ea",
+                fg="#17324b",
+                activebackground="#8bb8df",
+                activeforeground="#11283c",
+                disabledforeground="#5d7488",
             )
             self.stop_btn.config(
                 bg="#d9dde2",
@@ -258,6 +281,7 @@ class MouseClickerApp:
 
         self.waiting_for_target = True
         self.start_btn.config(state="disabled")
+        self.resume_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self._refresh_action_button_theme()
         self.status_var.set("Waiting for your next mouse click to set target...")
@@ -281,24 +305,44 @@ class MouseClickerApp:
         if self.target_pos is None:
             self.waiting_for_target = False
             self.start_btn.config(state="normal")
+            self.resume_btn.config(state="normal" if self.target_pos is not None else "disabled")
             self.stop_btn.config(state="disabled")
+            self._refresh_action_button_theme()
             self.status_var.set("Target capture cancelled.")
             return
 
+        self.target_label.config(text=f"Target: {self.target_pos}")
+        self.status_var.set("Clicking started.")
+        self._start_clicking_with_current_target()
+
+    def _start_clicking_with_current_target(self) -> None:
         self.waiting_for_target = False
         self.running = True
         self.stop_event.clear()
+        self.start_btn.config(state="normal")
+        self.resume_btn.config(state="normal")
+        self.stop_btn.config(state="normal")
         self._refresh_action_button_theme()
-
-        self.target_label.config(text=f"Target: {self.target_pos}")
-        self.status_var.set("Clicking started.")
 
         self.click_thread = threading.Thread(target=self._click_loop, daemon=True)
         self.click_thread.start()
 
+    def resume_clicked(self) -> None:
+        if self.running or self.waiting_for_target:
+            return
+
+        if self.target_pos is None:
+            messagebox.showinfo("No target", "Set a target first by using Start Clicking.")
+            return
+
+        self.target_label.config(text=f"Target: {self.target_pos}")
+        self.status_var.set("Clicking resumed.")
+        self._start_clicking_with_current_target()
+
     def _click_loop(self) -> None:
         interval, total_clicks = self._parse_params()
         button = self.button_var.get()
+        return_mouse = self.return_mouse_var.get()
         done = 0
 
         while not self.stop_event.is_set():
@@ -307,10 +351,13 @@ class MouseClickerApp:
 
             x, y = self.target_pos
             try:
+                original_pos = pyautogui.position() if return_mouse else None
                 pyautogui.click(x=x, y=y, button=button)
                 if self.double_click_var.get():
                     pyautogui.click(x=x, y=y, button=button)
                 pyautogui.press("ctrl")
+                if original_pos is not None:
+                    pyautogui.moveTo(original_pos.x, original_pos.y)
             except pyautogui.FailSafeException:
                 self.root.after(
                     0,
@@ -339,6 +386,7 @@ class MouseClickerApp:
         self.running = False
         self.waiting_for_target = False
         self.start_btn.config(state="normal")
+        self.resume_btn.config(state="normal" if self.target_pos is not None else "disabled")
         self.stop_btn.config(state="disabled")
         self._refresh_action_button_theme()
         if (
@@ -353,13 +401,6 @@ class MouseClickerApp:
             self.status_var.set(
                 "Capture in progress. Click once to finish capture, then it will stop."
             )
-
-    def clear_target(self) -> None:
-        if self.running:
-            self.stop_clicked()
-        self.target_pos = None
-        self.target_label.config(text="Target: not selected")
-        self.status_var.set("Target cleared.")
 
     def on_close(self) -> None:
         self.stop_event.set()
@@ -469,6 +510,7 @@ def run_cli_clicker() -> None:
     button = ask_button("Mouse button", "left")
     total_clicks = ask_non_negative_int("Number of clicks (0 = infinite)", 0)
     double_click = ask_yes_no("Double click each cycle", False)
+    return_mouse = ask_yes_no("Return mouse to original position after each click", True)
 
     print("\nNow click once anywhere on screen to set the target position...")
     print(
@@ -481,10 +523,13 @@ def run_cli_clicker() -> None:
     done = 0
     try:
         while True:
+            original_pos = pyautogui.position() if return_mouse else None
             pyautogui.click(x=target_x, y=target_y, button=button)
             if double_click:
                 pyautogui.click(x=target_x, y=target_y, button=button)
             pyautogui.press("ctrl")
+            if original_pos is not None:
+                pyautogui.moveTo(original_pos.x, original_pos.y)
 
             done += 1
             if total_clicks > 0 and done >= total_clicks:

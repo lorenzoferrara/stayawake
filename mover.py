@@ -8,12 +8,12 @@ def main():
     print("Mover started")
 
     mytime = 10  # seconds between checks
-    pyautogui.moveTo(1, 1)
-    last_pos = pyautogui.position()
+    last_pos = (1,1)
     working_delta = 0
 
     starting_hour = time.localtime().tm_hour
-    print(starting_hour)
+    print(f"Started at {starting_hour}")
+    
     if starting_hour < 13:
         day_part = "morning"
     else:
