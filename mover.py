@@ -4,7 +4,7 @@ import sys
 
 
 def main():
-    pyautogui.FAILSAFE = True  # Move mouse to top-left corner to stop safely
+    pyautogui.FAILSAFE = False  # Move mouse to top-left corner to stop safely
     print("Mover started")
 
     mytime = 10  # seconds between checks

@@ -27,7 +27,7 @@ class MouseClickerApp:
         self.click_thread: threading.Thread | None = None
         self.stop_event = threading.Event()
 
-        self.interval_var = tk.StringVar(value="4.0")
+        self.interval_var = tk.StringVar(value="10")
         self.button_var = tk.StringVar(value="left")
         self.double_click_var = tk.BooleanVar(value=False)
         self.return_mouse_var = tk.BooleanVar(value=True)
